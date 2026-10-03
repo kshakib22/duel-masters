@@ -1,5 +1,7 @@
 package match
 
+import "slices"
+
 var seqID = 1
 
 type PersistentHandlerFunc func(ctx2 *Context, exit func())
@@ -27,4 +29,17 @@ func (match *Match) RemovePersistentEffect(id int) {
 	if ok {
 		delete(match.persistentEffects, id)
 	}
+}
+
+// persistentEffectKeys returns the keys of the match's persistent effects in
+// the order they were applied.
+func (match *Match) persistentEffectKeys() []int {
+	keys := make([]int, 0, len(match.persistentEffects))
+	for key := range match.persistentEffects {
+		keys = append(keys, key)
+	}
+
+	slices.Sort(keys)
+
+	return keys
 }

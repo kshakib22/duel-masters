@@ -761,10 +761,17 @@ func (m *Match) HandleFx(ctx *Context) {
 
 	}
 
-	// Handle persistent effects
-	for _, fx := range m.persistentEffects {
+	// Handle persistent effects, oldest first. Map order is random in Go, and
+	// a replayed match must run them in the same order every time. An effect
+	// removed by an earlier one in this pass is skipped, and one added during
+	// the pass first runs in the next context.
+	for _, key := range m.persistentEffectKeys() {
 		if m.IsEnding() {
 			return
+		}
+		fx, ok := m.persistentEffects[key]
+		if !ok {
+			continue
 		}
 		fx.effect(ctx, fx.exit)
 	}
