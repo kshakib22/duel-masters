@@ -64,7 +64,7 @@ scripts 02, 03 and 04 re-run (on a machine with PowerShell) in the same parent c
 17. **`sim/bridge`**: runs one duel in-process from a JSON spec, queues inputs and
     delivers them only when the engine has settled, reports unknown card ids, keeps the
     delivered input log, and exposes the debug view (nothing hidden) and the result.
-    (commit below)
-18. **`sim/cmd/wasm`**: the browser build, `globalThis.duelEngine`. (commit below)
+    9f1d5bb4
+18. **`sim/cmd/wasm`**: the browser build, `globalThis.duelEngine`. 9f1d5bb4
 19. **`internal/mail.go` is left out of the browser build** (`//go:build !js`, with a
-    stub), which drops the AWS library from it. (commit below)
+    stub), which drops the AWS library from it. 9f1d5bb4
