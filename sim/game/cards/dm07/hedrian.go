@@ -7,7 +7,6 @@ import (
 	"duel-masters/game/fx"
 	"duel-masters/game/match"
 	"fmt"
-	"math/rand"
 )
 
 func BattleshipMutant(c *match.Card) {
@@ -58,12 +57,12 @@ func PropellerMutant(c *match.Card) {
 			return
 		}
 
-		randomcard := hand[rand.Intn(len(hand))]
+		randomcard := hand[ctx.Match.Rand().Intn(len(hand))]
 		for randomcard.ID == event.Source {
 			if len(hand) == 1 {
 				return
 			}
-			randomcard = hand[rand.Intn(len(hand))]
+			randomcard = hand[ctx.Match.Rand().Intn(len(hand))]
 		}
 
 		discardedCard, err := ctx.Match.Opponent(card.Player).MoveCard(randomcard.ID, match.HAND, match.GRAVEYARD, card.ID)

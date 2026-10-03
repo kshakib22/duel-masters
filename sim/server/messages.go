@@ -35,6 +35,9 @@ type CardState struct {
 	Name    string `json:"name"`
 	Civ     string `json:"civilization"`
 	Flags   uint8  `json:"flags"`
+	// Power and Cost are only sent when the match uses extended state.
+	Power *int `json:"power,omitempty"`
+	Cost  *int `json:"cost,omitempty"`
 }
 
 // ShieldState stores information about the state of a shield
@@ -94,6 +97,9 @@ type DuelFinishedMessage struct {
 	WonByDisconnect      bool                `json:"wonByDisconnect"`
 	Turns                int                 `json:"turns"`
 	DurationSeconds      int64               `json:"durationSeconds"`
+	// Reason is shields, deck_out, resign, turn_limit, card_effect or
+	// disconnect.
+	Reason string `json:"reason,omitempty"`
 }
 
 // ActionMessage is used to prompt the user to make a selection of the specified cards

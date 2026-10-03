@@ -57,6 +57,14 @@ type Match struct {
 
 	hostUsername  string
 	guestUsername string
+
+	// Set through SetOptions before the match starts. All of these are unset
+	// for a standard match, which then behaves exactly as without them.
+	options      *MatchOptions
+	rng          *rand.Rand
+	seeded       bool
+	cardIDs      atomic.Int64
+	placingSetup bool
 }
 
 // Name just returns "match", obligatory for a hub
@@ -81,6 +89,37 @@ func (m *Match) IsEnding() bool {
 // event that never finished.
 func (m *Match) EventLoopStopped() bool {
 	return m != nil && !m.eventloop.isRunning()
+}
+
+// TurnsPlayed returns the number of turns started so far, counted the way the
+// finish message counts them.
+func (m *Match) TurnsPlayed() int {
+	return m.turnsPlayed
+}
+
+// EventLoopBusy reports whether a sequential event (playing a card, charging
+// mana, attacking, ending the turn) is being processed right now. A sequential
+// event sent while the loop is busy is dropped.
+func (m *Match) EventLoopBusy() bool {
+	return m.eventloop.busy.Load()
+}
+
+// EventsProcessed returns how many sequential events the match has finished.
+func (m *Match) EventsProcessed() uint64 {
+	return m.eventloop.processed.Load()
+}
+
+// ParallelEventsInFlight returns how many parallel events (prompt answers,
+// chat, resigning) are still running. A prompt answer counts until the waiting
+// effect has received it.
+func (m *Match) ParallelEventsInFlight() int64 {
+	return m.eventloop.parallel.Load()
+}
+
+// ScheduleSequential runs fn on the match event loop, as a sequential event.
+// Like any sequential event it is dropped if the loop is busy.
+func (m *Match) ScheduleSequential(fn func()) {
+	m.eventloop.schedule(fn, SequentialEvent)
 }
 
 // Dispose closes the match, disconnects the clients and removes all references to it
@@ -440,8 +479,14 @@ func (m *Match) ResolveShieldTriggers(shieldTriggers []*Card, source *Card) {
 
 }
 
-// End ends the match
+// End ends the match. Effects that end it through their own printed rules use
+// this, and the finish message reports EndReasonCardEffect.
 func (m *Match) End(winner *Player, winnerStr string) {
+	m.EndWithReason(winner, winnerStr, EndReasonCardEffect)
+}
+
+// EndWithReason ends the match and reports why in the finish message.
+func (m *Match) EndWithReason(winner *Player, winnerStr string, reason string) {
 
 	logrus.Debugf("Attempting to end match %s", m.ID)
 
@@ -458,7 +503,9 @@ func (m *Match) End(winner *Player, winnerStr string) {
 			Message: winnerStr,
 		})
 
-		m.Broadcast(m.newDuelFinishedMessage(duel, matchResultGenerated))
+		message := m.newDuelFinishedMessage(duel, matchResultGenerated)
+		message.Reason = reason
+		m.Broadcast(message)
 	}
 
 	m.Dispose()
@@ -547,7 +594,16 @@ func (m *Match) newDuelFinishedMessage(duel DuelRecord, matchResultGenerated boo
 		WonByDisconnect:      duel.WonByDisconnect,
 		Turns:                duel.Turns,
 		DurationSeconds:      durationSeconds,
+		Reason:               duelFinishedReason(duel),
 	}
+}
+
+func duelFinishedReason(duel DuelRecord) string {
+	if duel.WonByDisconnect {
+		return EndReasonDisconnect
+	}
+
+	return EndReasonCardEffect
 }
 
 func duelFinishedWinner(winnerUID string, player1 *PlayerReference, player2 *PlayerReference) *server.DuelFinishedPlayer {
@@ -621,6 +677,11 @@ func (m *Match) BroadcastState() {
 	player2 := *m.Player2.Player.Denormalized()
 	player2.Username = m.Player2.Username
 	player2.Color = m.Player2.Color
+
+	if m.extendedState() {
+		m.extendPlayerState(&player1, m.Player1.Player)
+		m.extendPlayerState(&player2, m.Player2.Player)
+	}
 
 	_, isAttackStep := m.Step.(*AttackStep)
 
@@ -803,9 +864,13 @@ func (m *Match) HandleFx(ctx *Context) {
 	}
 
 	// End the game  if any of the players are out of cards in their deck
+	if !m.deckOutLoses() {
+		return
+	}
+
 	for _, p := range players {
 		if len(p.Player.deck) < 1 {
-			m.End(m.Opponent(p.Player), fmt.Sprintf("%s won by deck out!", m.Opponent(p.Player).Username()))
+			m.EndWithReason(m.Opponent(p.Player), fmt.Sprintf("%s won by deck out!", m.Opponent(p.Player).Username()), EndReasonDeckOut)
 		}
 	}
 
@@ -1055,7 +1120,7 @@ func (m *Match) CoinToss() {
 	var PlayerToAwaitToss *PlayerReference
 
 	if m.PlayerSelectingToss == "" {
-		if rand.Intn(100) >= 50 {
+		if m.Rand().Intn(100) >= 50 {
 			m.PlayerSelectingToss = m.Player2.UID
 
 			PlayerToChooseToss = m.Player2
@@ -1091,8 +1156,8 @@ func (m *Match) Start() {
 	m.Player1.Player.InitShieldzone()
 	m.Player2.Player.InitShieldzone()
 
-	m.Player1.Player.DrawCards(5)
-	m.Player2.Player.DrawCards(5)
+	m.Player1.Player.DrawCards(m.openingHand(m.Player1.Player))
+	m.Player2.Player.DrawCards(m.openingHand(m.Player2.Player))
 
 	m.Chat("Server", "The duel has begun!")
 
@@ -1106,6 +1171,11 @@ func (m *Match) BeginNewTurn(repeatTurn ...bool) {
 	m.Step = &BeginTurnStep{}
 
 	if len(repeatTurn) == 0 || !repeatTurn[0] {
+		if limit := m.turnLimit(); limit != nil && m.turnsPlayed >= limit.Turns {
+			m.endByTurnLimit(limit)
+			return
+		}
+
 		m.turnsPlayed++
 
 		if m.Turn == 1 {
@@ -1119,7 +1189,7 @@ func (m *Match) BeginNewTurn(repeatTurn ...bool) {
 
 	m.HandleFx(ctx)
 
-	m.CurrentPlayer().Player.HasChargedMana = false
+	m.CurrentPlayer().Player.resetCharges()
 	m.CurrentPlayer().Player.CanChargeMana = true
 
 	m.BroadcastState()
@@ -1177,7 +1247,7 @@ func (m *Match) DrawStep() {
 
 	m.HandleFx(ctx)
 
-	if m.isFirstTurn == false {
+	if m.isFirstTurn == false || !m.firstPlayerSkipsDraw() {
 		m.CurrentPlayer().Player.DrawCards(1)
 	}
 
@@ -1253,7 +1323,7 @@ func (m *Match) ChargeMana(p *PlayerReference, cardID string) {
 	}
 
 	if card, err := p.Player.MoveCard(cardID, HAND, MANAZONE, cardID); err == nil {
-		p.Player.HasChargedMana = true
+		p.Player.useCharge()
 		m.BroadcastState()
 		m.ReportActionInChat(p.Player, fmt.Sprintf("%s was added to %s's manazone", card.Name, p.Socket.User.Username))
 	}
@@ -1586,7 +1656,7 @@ func (m *Match) Parse(s *server.Socket, data []byte) {
 								m.Chat("Server", fmt.Sprintf("%s has called tails", s.User.Username))
 							}
 
-							var outcome = rand.Intn(100)
+							var outcome = m.Rand().Intn(100)
 							var heads = (outcome >= 50)
 							var wasTossDecisionCorrect bool
 
@@ -1922,7 +1992,7 @@ func (m *Match) Parse(s *server.Socket, data []byte) {
 				return
 			}
 
-			m.End(m.Opponent(p.Player), fmt.Sprintf("%s won by opponent resigning.", m.Opponent(p.Player).Username()))
+			m.EndWithReason(m.Opponent(p.Player), fmt.Sprintf("%s won by opponent resigning.", m.Opponent(p.Player).Username()), EndReasonResign)
 
 		}, ParallelEvent)
 
@@ -2040,7 +2110,7 @@ func (p *PlayerReference) Dispose() {
 
 func (m *Match) handleAdminMessages(message string, user server.User) {
 
-	if !hasAdminRightsAndValidMsgFormat(message, user) {
+	if !hasAdminRightsAndValidMsgFormat(message, user) && !(m.sandboxConsole() && len(strings.Split(message, " ")) >= 2) {
 		return
 	}
 

@@ -21,6 +21,15 @@ type EventLoop struct {
 	running atomic.Bool
 	events  chan func()
 	exit    chan struct{}
+
+	// Settle signals, read by code that drives a match from outside (a bot, a
+	// replay) and must not send a sequential event while one is running,
+	// because the loop drops it. busy is true while a sequential event runs,
+	// processed counts finished sequential events, and parallel counts
+	// parallel events that have not returned yet.
+	busy      atomic.Bool
+	processed atomic.Uint64
+	parallel  atomic.Int64
 }
 
 func NewEventLoop() *EventLoop {
@@ -55,12 +64,19 @@ func (el *EventLoop) start() {
 			// event into a send on a closed channel.
 			return
 		case event := <-el.events:
+			el.busy.Store(true)
 			el.process(event)
 
 			// drain the channel
 			for len(el.events) > 0 {
 				<-el.events
 			}
+
+			// Only after the drain: an event sent between the end of process
+			// and the drain would be thrown away, so the loop must not look idle
+			// until the drain is over.
+			el.busy.Store(false)
+			el.processed.Add(1)
 		}
 	}
 }
@@ -81,6 +97,10 @@ func (el *EventLoop) stop() {
 
 func (el *EventLoop) schedule(event func(), strategy EventExecutionStrategy) {
 
+	if strategy == ParallelEvent {
+		el.parallel.Add(1)
+	}
+
 	go func() {
 		// A parallel event should never open a prompt, but it runs on its own
 		// goroutine, so an abort raised by one has no other boundary to reach.
@@ -88,6 +108,7 @@ func (el *EventLoop) schedule(event func(), strategy EventExecutionStrategy) {
 
 		switch strategy {
 		case ParallelEvent:
+			defer el.parallel.Add(-1)
 			event()
 			return
 

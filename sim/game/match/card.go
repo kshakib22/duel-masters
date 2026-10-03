@@ -23,6 +23,9 @@ const (
 	PlayableFlag                           // 2
 	TapAbilityFlag                         // 4
 	ShieldFaceUpFlag                       // 8
+	// Only sent when the match uses extended state.
+	SummoningSickFlag // 16
+	BlockerFlag       // 32
 )
 
 // Card holds information about a specific card
@@ -56,7 +59,7 @@ type Card struct {
 // NewCard returns a new, initialized card
 func NewCard(p *Player, image string) (*Card, error) {
 
-	id, err := shortid.Generate()
+	id, err := newCardID(p)
 
 	if err != nil {
 		logrus.Debug("Failed to generate id for card")
@@ -91,6 +94,16 @@ func NewCard(p *Player, image string) (*Card, error) {
 
 	return c, nil
 
+}
+
+// newCardID numbers the cards of a seeded match so a replay gives every card the
+// same id, and generates a random id otherwise.
+func newCardID(p *Player) (string, error) {
+	if p != nil && p.match != nil && p.match.seeded {
+		return p.match.nextCardID(), nil
+	}
+
+	return shortid.Generate()
 }
 
 // Use allows different cards to hook into match events

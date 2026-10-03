@@ -4,7 +4,6 @@ import (
 	"duel-masters/game/cnd"
 	"duel-masters/game/match"
 	"fmt"
-	"math/rand"
 )
 
 func GiveTapAbilityToAllies(card *match.Card, ctx *match.Context, alliesFilter func(card *match.Card) bool, tapAbility func(card *match.Card, ctx *match.Context)) {
@@ -88,7 +87,7 @@ func PlayerDiscardsRandomCard(card *match.Card, ctx *match.Context) {
 		return
 	}
 
-	discardedCard, err := card.Player.MoveCard(hand[rand.Intn(len(hand))].ID, match.HAND, match.GRAVEYARD, card.ID)
+	discardedCard, err := card.Player.MoveCard(hand[ctx.Match.Rand().Intn(len(hand))].ID, match.HAND, match.GRAVEYARD, card.ID)
 	if err == nil {
 		ctx.Match.ReportActionInChat(card.Player, fmt.Sprintf("%s was discarded from %s's hand by %s", discardedCard.Name, discardedCard.Player.Username(), card.Name))
 	}
@@ -103,7 +102,7 @@ func OpponentDiscardsRandomCard(card *match.Card, ctx *match.Context) {
 		return
 	}
 
-	discardedCard, err := ctx.Match.Opponent(card.Player).MoveCard(hand[rand.Intn(len(hand))].ID, match.HAND, match.GRAVEYARD, card.ID)
+	discardedCard, err := ctx.Match.Opponent(card.Player).MoveCard(hand[ctx.Match.Rand().Intn(len(hand))].ID, match.HAND, match.GRAVEYARD, card.ID)
 	if err == nil {
 		ctx.Match.ReportActionInChat(ctx.Match.Opponent(card.Player), fmt.Sprintf("%s was discarded from %s's hand by %s", discardedCard.Name, discardedCard.Player.Username(), card.Name))
 	}

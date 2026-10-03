@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -96,6 +97,12 @@ type Player struct {
 
 	HasChargedMana bool
 	CanChargeMana  bool
+	chargesUsed    int
+
+	// awaitingAction is true while NextAction is waiting for this player, and
+	// answers counts the answers NextAction has received.
+	awaitingAction atomic.Bool
+	answers        atomic.Uint64
 	Turn           byte
 	Ready          bool
 
@@ -274,6 +281,8 @@ func (p *Player) SpawnCard(id string, zone string) (*Card, error) {
 		p.deck = append(p.deck, c)
 	case GRAVEYARD:
 		p.graveyard = append(p.graveyard, c)
+	case HIDDENZONE:
+		p.hiddenzone = append(p.hiddenzone, c)
 	default:
 		return nil, fmt.Errorf("invalid zone %s for card %s", zone, id)
 	}
@@ -286,16 +295,26 @@ func (p *Player) ShuffleDeck() {
 
 	p.mutex.Lock()
 
-	rand.Shuffle(len(p.deck), func(i, j int) { p.deck[i], p.deck[j] = p.deck[j], p.deck[i] })
+	p.rand().Shuffle(len(p.deck), func(i, j int) { p.deck[i], p.deck[j] = p.deck[j], p.deck[i] })
 
 	p.mutex.Unlock()
 
 }
 
-// InitShieldzone adds 5 cards from the players deck to their shieldzone
+// rand returns the match's source of randomness.
+func (p *Player) rand() *rand.Rand {
+	if p.match == nil {
+		return globalRand
+	}
+
+	return p.match.Rand()
+}
+
+// InitShieldzone adds the player's starting shields (5 unless a house rule says
+// otherwise) from the players deck to their shieldzone
 func (p *Player) InitShieldzone() {
 
-	cards := p.PeekDeck(5)
+	cards := p.PeekDeck(p.match.shieldCount(p))
 
 	for _, card := range cards {
 
@@ -354,9 +373,9 @@ func (p *Player) DrawCards(n int) []*Card {
 		p.match.ReportActionInChat(p, fmt.Sprintf("%s drew %v cards", p.match.PlayerRef(p).Socket.User.Username, n))
 	}
 
-	if len(p.deck) <= 0 {
+	if len(p.deck) <= 0 && p.match.deckOutLoses() {
 		// deck out
-		p.match.End(p.match.Opponent(p), fmt.Sprintf("%s won by deck out!", p.match.Opponent(p).Username()))
+		p.match.EndWithReason(p.match.Opponent(p), fmt.Sprintf("%s won by deck out!", p.match.Opponent(p).Username()), EndReasonDeckOut)
 	}
 
 	return toMove
@@ -895,14 +914,29 @@ func (p *Player) NextAction() PlayerAction {
 		panic(matchDisposed{})
 	}
 
+	p.awaitingAction.Store(true)
 	action, ok := <-p.Action
+	p.awaitingAction.Store(false)
 
 	if !ok {
 		panic(matchDisposed{})
 	}
 
+	p.answers.Add(1)
+
 	return action
 
+}
+
+// AwaitingAction reports whether the match is waiting for this player to answer
+// a prompt.
+func (p *Player) AwaitingAction() bool {
+	return p.awaitingAction.Load()
+}
+
+// AnswersReceived returns how many prompt answers this player has given.
+func (p *Player) AnswersReceived() uint64 {
+	return p.answers.Load()
 }
 
 // Dispose clears out references in the player object

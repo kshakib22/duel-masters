@@ -333,7 +333,7 @@ func Creature(card *match.Card, ctx *match.Context) {
 
 							if oppShieldsZoneLength < 1 {
 								// Win
-								ctx.Match.End(card.Player, fmt.Sprintf("%s won the game", ctx.Match.PlayerRef(card.Player).Socket.User.Username))
+								ctx.Match.EndWithReason(card.Player, fmt.Sprintf("%s won the game", ctx.Match.PlayerRef(card.Player).Socket.User.Username), match.EndReasonShields)
 							} else {
 								// Break n shields
 								if card.HasCondition(cnd.HasShieldsSelectionEffect) {
@@ -376,7 +376,7 @@ func Creature(card *match.Card, ctx *match.Context) {
 				} else {
 					if oppShieldsZoneLength < 1 {
 						// Win
-						ctx.Match.End(card.Player, fmt.Sprintf("%s won the game", ctx.Match.PlayerRef(card.Player).Socket.User.Username))
+						ctx.Match.EndWithReason(card.Player, fmt.Sprintf("%s won the game", ctx.Match.PlayerRef(card.Player).Socket.User.Username), match.EndReasonShields)
 					} else {
 						// Break n shields
 						if card.HasCondition(cnd.HasShieldsSelectionEffect) {
