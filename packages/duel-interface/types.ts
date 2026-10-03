@@ -6,6 +6,15 @@ export interface DuelTransport {
   close(): void;
 }
 
+export type CardImageUrlResolver = (uid?: string, back?: boolean) => string;
+
+export const defaultCardImageUrl: CardImageUrlResolver = (uid, back) => {
+  if (back || !uid || uid === "backside") {
+    return "https://scans.shobu.io/backside.jpg";
+  }
+  return `https://scans.shobu.io/${uid}.jpg`;
+};
+
 // Message is the default message struct
 export interface Message {
   header: string;

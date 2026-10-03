@@ -10,4 +10,6 @@ export type {
   DuelChatUserTriggerRenderer,
   DuelFinishedMessage,
   DuelTransport,
+  CardImageUrlResolver,
 } from "./types";
+export { defaultCardImageUrl } from "./types";

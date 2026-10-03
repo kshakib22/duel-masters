@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { Button } from "./Button";
+import { defaultCardImageUrl, type CardImageUrlResolver } from "./types";
 
 interface MultiCardPreviewCard {
   imageId: string;
@@ -10,6 +11,7 @@ interface MultiCardPreviewProps {
   visible: boolean;
   cards: MultiCardPreviewCard[];
   title: string;
+  cardImageUrl?: CardImageUrlResolver;
   onClose: () => void;
   onCardClick?: (imageId: string, name: string) => void;
 }
@@ -44,6 +46,7 @@ export function MultiCardPreview({
   visible,
   cards,
   title,
+  cardImageUrl = defaultCardImageUrl,
   onClose,
   onCardClick,
 }: MultiCardPreviewProps) {
@@ -108,7 +111,7 @@ export function MultiCardPreview({
               {cards.map((card, index) => (
                 <div key={index} className="flex flex-col items-center">
                   <img
-                    src={`https://scans.shobu.io/${card.imageId}.jpg`}
+                    src={cardImageUrl(card.imageId)}
                     alt={card.name}
                     className="shadow-lg hover:scale-105 transition-transform cursor-pointer"
                     style={{

@@ -1,10 +1,12 @@
 import { useEffect } from "react";
 import { Button } from "./Button";
+import { defaultCardImageUrl, type CardImageUrlResolver } from "./types";
 
 interface CardPreviewProps {
   visible: boolean;
   imageId: string | null;
   name: string | null;
+  cardImageUrl?: CardImageUrlResolver;
   onClose: () => void;
 }
 
@@ -12,6 +14,7 @@ export function CardPreview({
   visible,
   imageId,
   name,
+  cardImageUrl = defaultCardImageUrl,
   onClose,
 }: CardPreviewProps) {
   useEffect(() => {
@@ -40,7 +43,7 @@ export function CardPreview({
 
   if (!visible) return null;
 
-  const imageUrl = imageId ? `https://scans.shobu.io/${imageId}.jpg` : "";
+  const imageUrl = imageId ? cardImageUrl(imageId) : "";
 
   return (
     <div

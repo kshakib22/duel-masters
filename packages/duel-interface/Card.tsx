@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
+import { defaultCardImageUrl, type CardImageUrlResolver } from "./types";
 
 export interface CardProps {
   virtualId?: string;
   name?: string;
   imageId?: string;
+  cardImageUrl?: CardImageUrlResolver;
   rotated?: boolean;
   flipped?: boolean;
   /** Small index drawn in the card's top right corner, used to number shields. */
@@ -26,6 +28,7 @@ export function Card({
   virtualId,
   name,
   imageId,
+  cardImageUrl = defaultCardImageUrl,
   rotated = false,
   flipped = false,
   number,
@@ -94,7 +97,7 @@ export function Card({
         {/* Card image */}
         <img
           ref={imgRef}
-          src={`https://scans.shobu.io/${imageId || "backside"}.jpg`}
+          src={cardImageUrl(imageId, !imageId || imageId === "backside")}
           alt={name || "Backside card"}
           draggable={false}
           className={`block h-full w-auto flex-shrink-0 ${

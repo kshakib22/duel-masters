@@ -74,3 +74,6 @@ scripts 02, 03 and 04 re-run (on a machine with PowerShell) in the same parent c
 20. **`transport?` prop on `Duel` and `useDuel`** (`DuelTransport`: connect, send, close),
     allowing duel interfaces to be driven in-process or by a Web Worker without opening a
     WebSocket. Defaults to standard WebSocket behavior.
+21. **`cardImageUrl?` prop on `Duel`, `Card`, `Action`, and previews** (`CardImageUrlResolver`:
+    `(uid?: string, back?: boolean) => string`), replacing all ten hardcoded scans.shobu.io
+    image URLs with configurable asset resolution. Defaults to scans.shobu.io URLs.

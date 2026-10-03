@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Popup } from "./Popup";
-import { ActionType, CardState } from "./types";
+import { ActionType, CardState, defaultCardImageUrl, type CardImageUrlResolver } from "./types";
 import { Button } from "./Button";
 import { CountInput } from "./CountInput";
 
@@ -8,6 +8,7 @@ export interface ActionProps {
   title: string;
   visible: boolean;
   error?: string;
+  cardImageUrl?: CardImageUrlResolver;
   onChoose: (data: {
     cards: string[];
     cancel: boolean;
@@ -46,6 +47,7 @@ export function Action({
   showCards,
   cancellable,
   visible,
+  cardImageUrl = defaultCardImageUrl,
   onChoose,
   onClose,
   onDismiss,
@@ -273,7 +275,7 @@ export function Action({
                     }}
                     draggable={false}
                     className="w-full rounded-md"
-                    src={`https://scans.shobu.io/${imageId}.jpg`}
+                    src={cardImageUrl(imageId)}
                     alt="Card preview"
                     style={{ borderRadius: "5%" }}
                   />
@@ -336,7 +338,7 @@ export function Action({
                             ? "ring-1 ring-blue-100"
                             : ""
                         }`}
-                        src={`https://scans.shobu.io/${card.uid}.jpg`}
+                        src={cardImageUrl(card.uid)}
                         alt={card.name}
                         style={{ borderRadius: "5%" }}
                       />
@@ -374,7 +376,7 @@ export function Action({
                             ? "ring-1 ring-blue-100"
                             : ""
                         }`}
-                        src={`https://scans.shobu.io/${card.uid}.jpg`}
+                        src={cardImageUrl(card.uid)}
                         alt={card.name}
                         style={{ borderRadius: "5%" }}
                       />
@@ -394,7 +396,7 @@ export function Action({
                         }}
                         draggable={false}
                         className="w-full cursor-not-allowed rounded-md opacity-50 grayscale"
-                        src={`https://scans.shobu.io/${card.uid}.jpg`}
+                        src={cardImageUrl(card.uid)}
                         alt={card.name}
                         style={{ borderRadius: "5%" }}
                       />
@@ -438,7 +440,7 @@ export function Action({
                       className={`w-full rounded-md ${
                         isSelected ? "ring-1 ring-blue-100" : ""
                       }`}
-                      src={`https://scans.shobu.io/${card.uid}.jpg`}
+                      src={cardImageUrl(card.uid)}
                       alt={card.name}
                       style={{ borderRadius: "5%" }}
                     />

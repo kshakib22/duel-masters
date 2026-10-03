@@ -14,6 +14,8 @@ import {
   TAP_ABILITY_FLAG,
   TAPPED_FLAG,
   DuelTransport,
+  defaultCardImageUrl,
+  type CardImageUrlResolver,
 } from "./types";
 import { Card } from "./Card";
 import { Button } from "./Button";
@@ -54,6 +56,7 @@ export interface DuelProps {
   duelId?: string;
   duelToken?: string;
   transport?: DuelTransport;
+  cardImageUrl?: CardImageUrlResolver;
   playmat?: string;
   /**
    * Whether the opponent's cards are flipped from their natural orientation
@@ -199,6 +202,7 @@ export function Duel({
   duelToken = "",
   hostUrl = "",
   transport,
+  cardImageUrl = defaultCardImageUrl,
   playmat,
   flipOpponentCards = false,
   resolveChatUser,
@@ -776,6 +780,9 @@ export function Duel({
     );
   };
 
+  const createCard = (options: Parameters<typeof CreateCard>[0] = {}) =>
+    CreateCard({ cardImageUrl, ...options });
+
   return (
     <>
       <style>{scrollbarStyles}</style>
@@ -960,7 +967,7 @@ export function Duel({
             <div className="absolute inset-0 z-10 overflow-x-auto overflow-y-hidden">
               <div className="inline-flex w-max justify-start gap-5 h-full pb-1">
                 {state.opponent.manazone.map(
-                  CreateCard({
+                  createCard({
                     // Mana always faces the player looking at the screen
                     flipped: false,
                     dragState,
@@ -989,7 +996,7 @@ export function Duel({
             <div className="absolute inset-0 z-10 overflow-x-auto overflow-y-hidden">
               <div className="inline-flex w-max justify-start gap-5 h-full p-1">
                 {state.opponent.shieldzone.map(
-                  CreateCard({
+                  createCard({
                     flipped: !flipOpponentCards,
                     shieldMap: state.opponent.shieldMap,
                     dragState,
@@ -1018,7 +1025,7 @@ export function Duel({
             <div className="absolute inset-0 z-10 overflow-x-auto overflow-y-hidden">
               <div className="inline-flex w-max justify-start gap-5 h-full p-1">
                 {state.opponent.playzone.map(
-                  CreateCard({
+                  createCard({
                     flipped: !flipOpponentCards,
                     dragState,
                     zone: "opponentPlayzone",
@@ -1040,7 +1047,7 @@ export function Duel({
             <div className="absolute inset-0 z-10 overflow-x-auto overflow-y-hidden">
               <div className="inline-flex w-max justify-start gap-5 h-full p-1">
                 {state.me.playzone.map(
-                  CreateCard({
+                  createCard({
                     selected: (id: string) => id === selectedCardId,
                     interactable: state?.myTurn,
                     dragState,
@@ -1068,7 +1075,7 @@ export function Duel({
             <div className="absolute inset-0 z-10 overflow-x-auto overflow-y-hidden">
               <div className="inline-flex w-max justify-start gap-5 h-full p-1">
                 {state.me.shieldzone.map(
-                  CreateCard({
+                  createCard({
                     shieldMap: state.me.shieldMap,
                     dragState,
                     zone: "myShieldzone",
@@ -1090,7 +1097,7 @@ export function Duel({
             <div className="absolute inset-0 z-10 overflow-x-auto overflow-y-hidden">
               <div className="inline-flex w-max justify-start gap-5 h-full p-1">
                 {state.me.manazone.map(
-                  CreateCard({
+                  createCard({
                     flipped: true,
                     dragState,
                     zone: "myManazone",
@@ -1125,7 +1132,7 @@ export function Duel({
                 <div className="absolute inset-0 z-10 overflow-x-auto overflow-y-hidden">
                   <div className="inline-flex w-max justify-start gap-5 h-full pt-1 p-px">
                     {state.me.hand.map(
-                      CreateCard({
+                      createCard({
                         selected: (id: string) => id === selectedCardId,
                         interactable: state?.myTurn,
                         canAddToManazone:
@@ -1296,7 +1303,7 @@ export function Duel({
                     </p>
                     <div className="relative h-[12vh] min-h-[40px] max-h-[70px] min-[1200px]:min-h-[60px] min-[1200px]:max-h-[110px] flex items-center justify-center">
                       <img
-                        src="https://scans.shobu.io/backside.jpg"
+                        src={cardImageUrl(undefined, true)}
                         alt="Deck back"
                         className="h-full"
                         style={{ borderRadius: "5%" }}
@@ -1312,11 +1319,11 @@ export function Duel({
                     <div className="relative h-[12vh] min-h-[40px] max-h-[70px] min-[1200px]:min-h-[60px] min-[1200px]:max-h-[110px] flex items-center justify-center">
                       {state.opponent.graveyard.length > 0 ? (
                         <img
-                          src={`https://scans.shobu.io/${
+                          src={cardImageUrl(
                             state.opponent.graveyard[
                               state.opponent.graveyard.length - 1
                             ].uid
-                          }.jpg`}
+                          )}
                           alt="Top graveyard card"
                           className="h-full cursor-pointer hover:scale-105 transition-transform"
                           style={{ borderRadius: "5%" }}
@@ -1342,7 +1349,7 @@ export function Duel({
                         />
                       ) : (
                         <img
-                          src="https://scans.shobu.io/backside.jpg"
+                          src={cardImageUrl(undefined, true)}
                           alt="Empty graveyard"
                           className="h-full opacity-30"
                           style={{ borderRadius: "5%" }}
@@ -1370,9 +1377,9 @@ export function Duel({
                     <div className="relative h-[12vh] min-h-[40px] max-h-[70px] min-[1200px]:min-h-[60px] min-[1200px]:max-h-[110px] flex items-center justify-center">
                       {state.me.graveyard.length > 0 ? (
                         <img
-                          src={`https://scans.shobu.io/${
+                          src={cardImageUrl(
                             state.me.graveyard[state.me.graveyard.length - 1].uid
-                          }.jpg`}
+                          )}
                           alt="Top graveyard card"
                           className="h-full cursor-pointer hover:scale-105 transition-transform"
                           style={{ borderRadius: "5%" }}
@@ -1398,7 +1405,7 @@ export function Duel({
                         />
                       ) : (
                         <img
-                          src="https://scans.shobu.io/backside.jpg"
+                          src={cardImageUrl(undefined, true)}
                           alt="Empty graveyard"
                           className="h-full opacity-30"
                           style={{ borderRadius: "5%" }}
@@ -1414,7 +1421,7 @@ export function Duel({
                     </p>
                     <div className="relative h-[12vh] min-h-[40px] max-h-[70px] min-[1200px]:min-h-[60px] min-[1200px]:max-h-[110px] flex items-center justify-center">
                       <img
-                        src="https://scans.shobu.io/backside.jpg"
+                        src={cardImageUrl(undefined, true)}
                         alt="Deck back"
                         className="h-full"
                         style={{ borderRadius: "5%" }}
@@ -1439,7 +1446,7 @@ export function Duel({
             }}
           >
             <img
-              src={`https://scans.shobu.io/${dragState.imageId}.jpg`}
+              src={cardImageUrl(dragState.imageId)}
               alt={dragState.name || "Card"}
               className={`h-[150px] opacity-90 ${
                 dragState.rotated ? "rotate-90" : ""
@@ -1541,6 +1548,7 @@ export function Duel({
         imageId={previewCard?.imageId || null}
         name={previewCard?.name || null}
         onClose={() => setPreviewCard(null)}
+        cardImageUrl={cardImageUrl}
       />
 
       <MultiCardPreview
@@ -1552,6 +1560,7 @@ export function Duel({
           setPreviewCard({ imageId, name });
           setMultiCardView(null);
         }}
+        cardImageUrl={cardImageUrl}
       />
 
       <Popup
@@ -1601,6 +1610,7 @@ export function Duel({
           cancellable={action.cancellable || false}
           unselectableCards={action.unselectableCards}
           choices={action.choices || null}
+          cardImageUrl={cardImageUrl}
           onChoose={sendAction}
           onClose={() => sendAction({ cards: [], cancel: true })}
           onDismiss={() => setAction(null)}
@@ -1615,6 +1625,7 @@ export function Duel({
 
 function CreateCard(
   options: {
+    cardImageUrl?: CardImageUrlResolver;
     interactable?: boolean;
     canAddToManazone?: boolean;
     flipped?: boolean;
@@ -1661,6 +1672,7 @@ function CreateCard(
         flipped={options.flipped}
         isDragging={isDragging}
         draggable={options.draggable}
+        cardImageUrl={options.cardImageUrl}
         onDragStart={(e) => {
           if (options.onDragStart && options.zone && card.uid) {
             options.onDragStart(
