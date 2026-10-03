@@ -68,3 +68,9 @@ scripts 02, 03 and 04 re-run (on a machine with PowerShell) in the same parent c
 18. **`sim/cmd/wasm`**: the browser build, `globalThis.duelEngine`. 9f1d5bb4
 19. **`internal/mail.go` is left out of the browser build** (`//go:build !js`, with a
     stub), which drops the AWS library from it. 9f1d5bb4
+
+## F. The duel board
+
+20. **`transport?` prop on `Duel` and `useDuel`** (`DuelTransport`: connect, send, close),
+    allowing duel interfaces to be driven in-process or by a Web Worker without opening a
+    WebSocket. Defaults to standard WebSocket behavior.

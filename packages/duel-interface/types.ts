@@ -1,5 +1,11 @@
 import type { ReactNode } from "react";
 
+export interface DuelTransport {
+  connect(onMessage: (json: string) => void): void;
+  send(json: string): void;
+  close(): void;
+}
+
 // Message is the default message struct
 export interface Message {
   header: string;

@@ -9,12 +9,14 @@ import {
   ShowCardsMessage,
   WaitMessage,
   WarningMessage,
+  DuelTransport,
 } from "./types";
 
 interface UseDuelOptions {
-  duelId: string;
-  duelToken: string;
-  hostUrl: string;
+  duelId?: string;
+  duelToken?: string;
+  hostUrl?: string;
+  transport?: DuelTransport;
   onActionMessage?: (message: ActionMessage) => void;
   onActionError?: (message: ActionWarningMessage) => void;
   onActionClose?: () => void;
@@ -30,6 +32,7 @@ export function useDuel({
   duelId,
   duelToken,
   hostUrl,
+  transport,
   onActionMessage,
   onActionError,
   onActionClose,
@@ -54,6 +57,86 @@ export function useDuel({
 
   useEffect(() => {
     isUnmountingRef.current = false;
+
+    if (transport) {
+      setConnected(true);
+      setError(null);
+      setReconnecting(false);
+
+      transport.connect((messageJson: string) => {
+        if (isUnmountingRef.current) return;
+        try {
+          const data = JSON.parse(messageJson);
+          switch (data.header) {
+            case "state_update":
+              setState(data.state);
+              break;
+            case "action":
+              onActionMessage?.(data);
+              break;
+            case "action_error":
+              onActionError?.(data);
+              break;
+            case "close_action":
+              onActionClose?.();
+              break;
+            case "chat":
+              onChat?.(data);
+              break;
+            case "warn":
+              onWarning?.(data);
+              break;
+            case "wait":
+              onWait?.(data);
+              break;
+            case "end_wait":
+              onEndWait?.();
+              break;
+            case "show_cards":
+              onActionMessage?.({
+                header: data.header,
+                actionType: ActionType.ShowCards,
+                text: data.message,
+                showCards: {
+                  cards: data.cards,
+                  dismissable: true,
+                },
+              });
+              break;
+            case "show_cards_non_dismissible":
+              onActionMessage?.({
+                header: data.header,
+                actionType: ActionType.ShowCards,
+                text: data.message,
+                showCards: {
+                  cards: data.cards,
+                  dismissable: false,
+                },
+              });
+              break;
+            case "opponent_disconnected":
+              setOpponentDisconnected(true);
+              break;
+            case "opponent_reconnected":
+              setOpponentDisconnected(false);
+              break;
+            case "duel_finished":
+              duelFinishedRef.current = true;
+              setDuelFinished(data);
+              break;
+            default:
+              console.log("Unknown message type:", data.header);
+          }
+        } catch (err) {
+          console.error("Error parsing message:", err);
+        }
+      });
+
+      return () => {
+        isUnmountingRef.current = true;
+        transport.close();
+      };
+    }
 
     const connect = () => {
       if (isUnmountingRef.current || duelFinishedRef.current) {
@@ -243,15 +326,20 @@ export function useDuel({
       window.removeEventListener("pageshow", handlePageShow);
       disconnect();
     };
-  }, [duelId, duelToken, hostUrl]);
+  }, [duelId, duelToken, hostUrl, transport]);
 
-  const send = useCallback((data: any) => {
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify(data));
-    } else {
-      console.error("WebSocket is not connected");
-    }
-  }, []);
+  const send = useCallback(
+    (data: any) => {
+      if (transport) {
+        transport.send(JSON.stringify(data));
+      } else if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify(data));
+      } else {
+        console.error("WebSocket is not connected");
+      }
+    },
+    [transport],
+  );
 
   const sendJoinMatch = () => {
     send({ header: "join_match" });

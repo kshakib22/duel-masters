@@ -9,4 +9,5 @@ export type {
   DuelChatUserTriggerProps,
   DuelChatUserTriggerRenderer,
   DuelFinishedMessage,
+  DuelTransport,
 } from "./types";

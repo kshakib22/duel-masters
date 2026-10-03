@@ -13,6 +13,7 @@ import {
   ShieldState,
   TAP_ABILITY_FLAG,
   TAPPED_FLAG,
+  DuelTransport,
 } from "./types";
 import { Card } from "./Card";
 import { Button } from "./Button";
@@ -49,9 +50,10 @@ const scrollbarStyles = `
 `;
 
 export interface DuelProps {
-  hostUrl: string;
-  duelId: string;
-  duelToken: string;
+  hostUrl?: string;
+  duelId?: string;
+  duelToken?: string;
+  transport?: DuelTransport;
   playmat?: string;
   /**
    * Whether the opponent's cards are flipped from their natural orientation
@@ -193,9 +195,10 @@ function DevToolSection({
 }
 
 export function Duel({
-  duelId,
-  duelToken,
-  hostUrl,
+  duelId = "",
+  duelToken = "",
+  hostUrl = "",
+  transport,
   playmat,
   flipOpponentCards = false,
   resolveChatUser,
@@ -244,6 +247,7 @@ export function Duel({
     hostUrl,
     duelId,
     duelToken,
+    transport,
     onActionMessage: (nextAction) => {
       setAction(nextAction);
       setActionError(null);
