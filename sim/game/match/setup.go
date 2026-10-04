@@ -42,9 +42,10 @@ type SetupCard struct {
 }
 
 // SeatSetup places one player's cards. Deck is in order, top card first. A nil
-// Deck keeps the deck the player was given.
+// Deck keeps the deck the player was given; an empty one leaves the seat with
+// no deck, so Deck is written even when empty (as [] or null) to survive JSON.
 type SeatSetup struct {
-	Deck        []string    `json:"deck,omitempty"`
+	Deck        []string    `json:"deck"`
 	ShuffleDeck bool        `json:"shuffleDeck,omitempty"`
 	Hand        []string    `json:"hand,omitempty"`
 	Mana        []SetupCard `json:"mana,omitempty"`

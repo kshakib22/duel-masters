@@ -55,6 +55,15 @@ scripts 02, 03 and 04 re-run (on a machine with PowerShell) in the same parent c
     `5287e940`
 15. **End reason** in `duel_finished`: `shields`, `deck_out`, `resign`, `turn_limit`,
     `card_effect`, `disconnect` (`Match.EndWithReason`). `5287e940`
+22. **`Position()`**: the settled duel read back as the same `BoardSetup` `StartFromSetup`
+    takes (`sim/bridge/position.go`), every zone of both seats in order, tapped, face-up,
+    summoning sickness, evolution bases, whose turn and the turn number, described as the
+    charge step of the current turn. Refuses with `ErrEnded`, `ErrNotSettled`, `ErrMidAnswer`
+    or `ErrUnreadable` instead of guessing. Exported to the browser as
+    `duelEngine.position()` (`sim/cmd/wasm`). One change to existing code: `SeatSetup.Deck`
+    loses `omitempty` in `game/match/setup.go`, because an empty deck left out of the JSON
+    meant "keep the deck you were given" and refilled it; nil still reads back as nil.
+    Nothing else changes with it unused.
 
 ## E. Driving a match without a network
 

@@ -10,6 +10,9 @@
 //	send(seat, json)             queues a seat's input; returns null or an error string
 //	settled()                    true when every input has been dealt with
 //	debugState()                 the whole duel, nothing hidden, as JSON
+//	position()                   the duel's current position as a BoardSetup, as JSON:
+//	                             {ok: true, position} when the duel has settled with nobody
+//	                             mid-answer, else {ok: false, error} saying why
 //	inputs()                     every delivered input, in order, as JSON
 //	result()                     how the duel ended, as JSON
 //	engineCards()                every card id the engine can play, as JSON
@@ -20,6 +23,7 @@ package main
 
 import (
 	"duel-masters/bridge"
+	"duel-masters/game/match"
 	"encoding/json"
 	"os"
 	"strings"
@@ -54,6 +58,19 @@ func main() {
 			return js.Null()
 		}
 		return toJSON(current.DebugState())
+	}))
+	api.Set("position", js.FuncOf(func(js.Value, []js.Value) any {
+		if current == nil {
+			return failure("there is no duel running")
+		}
+		position, err := current.Position()
+		if err != nil {
+			return failure(err.Error())
+		}
+		return toJSON(struct {
+			OK       bool              `json:"ok"`
+			Position *match.BoardSetup `json:"position"`
+		}{true, position})
 	}))
 	api.Set("inputs", js.FuncOf(func(js.Value, []js.Value) any {
 		if current == nil {
