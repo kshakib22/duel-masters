@@ -41,6 +41,7 @@ type DebugCard struct {
 	Name   string   `json:"name"`
 	Tapped bool     `json:"tapped,omitempty"`
 	FaceUp bool     `json:"faceUp,omitempty"`
+	Memory bool     `json:"memory,omitempty"`
 	Under  []string `json:"under,omitempty"`
 }
 
@@ -98,6 +99,7 @@ func debugZone(p *match.Player, zone string) []DebugCard {
 			Name:   card.Name,
 			Tapped: card.Tapped,
 			FaceUp: card.ShieldFaceUp,
+			Memory: card.Memory,
 		}
 		for _, under := range card.Attachments() {
 			dc.Under = append(dc.Under, under.ID)

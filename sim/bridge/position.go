@@ -122,7 +122,11 @@ func positionSeat(p *match.Player) (match.SeatSetup, error) {
 
 	if cards, err := p.Container(match.SHIELDZONE); err == nil {
 		for _, card := range cards {
-			seat.Shields = append(seat.Shields, match.SetupCard{ID: card.ImageID, FaceUp: card.ShieldFaceUp})
+			seat.Shields = append(seat.Shields, match.SetupCard{
+				ID:     card.ImageID,
+				FaceUp: card.ShieldFaceUp,
+				Memory: card.Memory,
+			})
 		}
 	}
 

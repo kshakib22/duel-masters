@@ -35,6 +35,7 @@ type Card struct {
 	Player       *Player
 	Tapped       bool
 	ShieldFaceUp bool
+	Memory       bool
 	Zone         string
 
 	Name  string

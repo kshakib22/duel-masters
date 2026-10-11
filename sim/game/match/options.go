@@ -21,6 +21,7 @@ const (
 	EndReasonTurnLimit  = "turn_limit"
 	EndReasonCardEffect = "card_effect"
 	EndReasonDisconnect = "disconnect"
+	EndReasonMemory     = "memory"
 )
 
 // SeatOptions holds the house rules that can differ between the two seats.
@@ -29,6 +30,7 @@ type SeatOptions struct {
 	Shields        *int
 	OpeningHand    *int
 	ChargesPerTurn *int
+	MemoryCard     string
 }
 
 // TurnLimit ends the duel once Turns turns have been played, counted the way
@@ -63,6 +65,9 @@ type MatchOptions struct {
 	// ExtendedState adds current power, printed cost, and the summoning sickness
 	// and blocker flags to every state update.
 	ExtendedState bool
+
+	// MemoryCard places the named card in Player 2's shields as a memory shield.
+	MemoryCard string
 
 	// Seats holds the per seat rules, index 0 for Player1 and 1 for Player2.
 	Seats [2]SeatOptions
@@ -113,6 +118,18 @@ func (m *Match) shieldCount(p *Player) int {
 	}
 
 	return 5
+}
+
+func (m *Match) memoryCard(p *Player) string {
+	if s := m.seatOptions(p); s != nil && s.MemoryCard != "" {
+		return s.MemoryCard
+	}
+
+	if m.Player2 != nil && m.Player2.Player == p && m.options != nil && m.options.MemoryCard != "" {
+		return m.options.MemoryCard
+	}
+
+	return ""
 }
 
 func (m *Match) openingHand(p *Player) int {

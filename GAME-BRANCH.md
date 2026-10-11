@@ -35,6 +35,9 @@ scripts 02, 03 and 04 re-run (on a machine with PowerShell) in the same parent c
    `5287e940`
 9. **Turn limit** ("survive N turns", a named seat wins, reason `turn_limit`). `5287e940`
 10. **Sandbox console per match**, as `local_dev=true` does for every match. `5287e940`
+23. **Memory shield** (`match.MatchOptions.MemoryCard`, `options.Seats[].MemoryCard`): places the
+    named card in the seat's shields (default Player 2) at a seeded position. When this shield is
+    broken, the opponent wins with reason `memory` (`EndReasonMemory`).
 
 ## C. Starting positions (`game/match/setup.go`)
 

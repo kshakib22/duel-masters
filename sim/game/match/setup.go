@@ -36,6 +36,7 @@ type SetupCard struct {
 	ID     string   `json:"id"`
 	Tapped bool     `json:"tapped,omitempty"` // mana and battle zone
 	FaceUp bool     `json:"faceUp,omitempty"` // shields
+	Memory bool     `json:"memory,omitempty"` // shields: memory shield
 	Sick   bool     `json:"sick,omitempty"`   // battle zone, only with BeginAtCharge
 	Enter  string   `json:"enter,omitempty"`  // battle zone: EnterQuiet (default) or EnterSummon
 	Bases  []string `json:"bases,omitempty"`  // battle zone: evolution bases underneath
@@ -136,6 +137,7 @@ func (m *Match) StartFromSetup(setup *BoardSetup) []string {
 		for _, entry := range s.Shields {
 			if card := spawn(seat, p, entry.ID, SHIELDZONE); card != nil {
 				card.ShieldFaceUp = entry.FaceUp
+				card.Memory = entry.Memory
 			}
 		}
 

@@ -311,15 +311,45 @@ func (p *Player) rand() *rand.Rand {
 }
 
 // InitShieldzone adds the player's starting shields (5 unless a house rule says
-// otherwise) from the players deck to their shieldzone
+// otherwise) from the players deck to their shieldzone. If the player has a
+// memory card configured, it is placed face down at a position drawn from the
+// match's seed, and marked as the memory shield.
 func (p *Player) InitShieldzone() {
 
-	cards := p.PeekDeck(p.match.shieldCount(p))
+	total := p.match.shieldCount(p)
+	mem := p.match.memoryCard(p)
 
-	for _, card := range cards {
+	if mem == "" || total <= 0 {
+		cards := p.PeekDeck(total)
+		for _, card := range cards {
+			p.MoveCard(card.ID, DECK, SHIELDZONE, "init_shieldzone")
+		}
+		return
+	}
 
-		p.MoveCard(card.ID, DECK, SHIELDZONE, "init_shieldzone")
+	uid, err := ResolveCardUID(mem)
+	if err != nil {
+		cards := p.PeekDeck(total)
+		for _, card := range cards {
+			p.MoveCard(card.ID, DECK, SHIELDZONE, "init_shieldzone")
+		}
+		return
+	}
 
+	deckCards := p.PeekDeck(total - 1)
+	pos := p.match.Rand().Intn(total)
+
+	deckIdx := 0
+	for i := 0; i < total; i++ {
+		if i == pos {
+			c, err := p.SpawnCard(uid, SHIELDZONE)
+			if err == nil && c != nil {
+				c.Memory = true
+			}
+		} else if deckIdx < len(deckCards) {
+			p.MoveCard(deckCards[deckIdx].ID, DECK, SHIELDZONE, "init_shieldzone")
+			deckIdx++
+		}
 	}
 
 }

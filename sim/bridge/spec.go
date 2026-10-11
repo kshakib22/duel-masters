@@ -26,6 +26,9 @@ type Spec struct {
 	// state update, for computer opponents. It is not a house rule: it changes
 	// what is reported, never how the duel plays.
 	ExtendedState bool `json:"extendedState,omitempty"`
+
+	// Memory card placed face down in Player 2's shields. Breaking it wins with reason "memory".
+	Memory string `json:"memory,omitempty"`
 }
 
 // Rules are the house rules. Every unset field keeps shobu's standard rule.
@@ -36,6 +39,7 @@ type Rules struct {
 	ChargesPerTurn       *int       `json:"chargesPerTurn,omitempty"`
 	DeckOut              string     `json:"deckOut,omitempty"`
 	TurnLimit            *TurnLimit `json:"turnLimit,omitempty"`
+	Memory               string     `json:"memory,omitempty"`
 
 	// StartingSeat is 1, 2 or "random" (the default), drawn from the seed.
 	StartingSeat json.RawMessage `json:"startingSeat,omitempty"`
@@ -58,6 +62,7 @@ type Seat struct {
 	Shields        *int     `json:"shields,omitempty"`
 	StartingHand   *int     `json:"startingHand,omitempty"`
 	ChargesPerTurn *int     `json:"chargesPerTurn,omitempty"`
+	Memory         string   `json:"memory,omitempty"`
 }
 
 // ParseSpec reads a Spec from JSON.
@@ -134,12 +139,18 @@ func (s *Spec) validate() error {
 
 // options turns the spec into the engine's match options.
 func (s *Spec) options(seed int64) *match.MatchOptions {
+	mem := s.Rules.Memory
+	if mem == "" {
+		mem = s.Memory
+	}
+
 	o := &match.MatchOptions{
 		Seed:                 &seed,
 		DeckOut:              s.Rules.DeckOut,
 		FirstPlayerSkipsDraw: s.Rules.FirstPlayerSkipsDraw,
 		SandboxConsole:       s.Rules.SandboxConsole,
 		ExtendedState:        s.ExtendedState,
+		MemoryCard:           mem,
 	}
 
 	if t := s.Rules.TurnLimit; t != nil {
@@ -147,10 +158,15 @@ func (s *Spec) options(seed int64) *match.MatchOptions {
 	}
 
 	for i, seat := range s.Seats {
+		seatMem := seat.Memory
+		if seatMem == "" && i == 1 {
+			seatMem = mem
+		}
 		o.Seats[i] = match.SeatOptions{
 			Shields:        firstSet(seat.Shields, s.Rules.Shields),
 			OpeningHand:    firstSet(seat.StartingHand, s.Rules.StartingHand),
 			ChargesPerTurn: firstSet(seat.ChargesPerTurn, s.Rules.ChargesPerTurn),
+			MemoryCard:     seatMem,
 		}
 	}
 

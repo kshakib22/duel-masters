@@ -1,6 +1,7 @@
 package bridge
 
 import (
+	"duel-masters/game/match"
 	"slices"
 	"strings"
 	"testing"
@@ -347,5 +348,142 @@ func TestAnswersWithNothingAskedAreRejected(t *testing.T) {
 	}
 	if err := h.d.Send(1, []byte(`{"header":"join_match"}`)); err == nil {
 		t.Fatal("expected join_match to be refused")
+	}
+}
+
+func TestMemoryShieldPlacedAtSeedPosition(t *testing.T) {
+	spec := vorgSpec(42)
+	spec.Rules.Memory = "Immortal Baron, Vorg"
+	h := start(t, spec)
+
+	ds := h.d.DebugState()
+	memCount := 0
+	var memPos int
+	for i, shield := range ds.Seats[1].Shields {
+		if shield.Memory {
+			memCount++
+			memPos = i
+		}
+	}
+	if memCount != 1 {
+		t.Fatalf("expected exactly 1 memory shield in seat 2, got %d", memCount)
+	}
+
+	// Repeat with same seed: must be at exact same position
+	h2 := start(t, spec)
+	ds2 := h2.d.DebugState()
+	if !ds2.Seats[1].Shields[memPos].Memory {
+		t.Fatalf("expected memory shield at pos %d for seed 42", memPos)
+	}
+}
+
+func TestMemoryShieldBreaksAndWins(t *testing.T) {
+	h := start(t, setupSpec(func(s *match.BoardSetup) {
+		s.Seats[0].Battle = []match.SetupCard{q(vorg)}
+		s.Seats[1].Shields = []match.SetupCard{
+			{ID: holyAwe, Memory: true},
+			{ID: vorg},
+		}
+	}))
+
+	attacker := battleCard(t, h, 1, vorg)
+	ds := h.d.DebugState()
+	memShield := ds.Seats[1].Shields[0]
+	if !memShield.Memory {
+		t.Fatal("expected shield 0 to be memory shield")
+	}
+
+	h.send(1, map[string]any{"header": "attack_player", "virtualId": attacker.ID})
+	if ds := h.d.DebugState(); ds.Prompt != 1 {
+		t.Fatalf("expected seat 1 to choose a shield, prompt %d", ds.Prompt)
+	}
+
+	// Choose the memory shield
+	h.send(1, map[string]any{"header": "action", "cards": []string{memShield.ID}})
+
+	dsAfter := h.d.DebugState()
+	if !dsAfter.Ended {
+		t.Fatal("expected match to end after memory shield broke")
+	}
+
+	res := h.d.Result()
+	if !res.Finished || res.Winner != 1 || res.Reason != match.EndReasonMemory {
+		t.Fatalf("expected winner 1 with reason memory, got %+v", res)
+	}
+}
+
+func TestMemoryShieldDoubleBreaker(t *testing.T) {
+	h := start(t, setupSpec(func(s *match.BoardSetup) {
+		s.Seats[0].Battle = []match.SetupCard{{ID: valdios, Bases: []string{vorg}}}
+		s.Seats[1].Shields = []match.SetupCard{
+			{ID: holyAwe},
+			{ID: vorg, Memory: true},
+		}
+	}))
+
+	attacker := battleCard(t, h, 1, valdios)
+	ds := h.d.DebugState()
+	s1 := ds.Seats[1].Shields[0]
+	s2 := ds.Seats[1].Shields[1]
+
+	h.send(1, map[string]any{"header": "attack_player", "virtualId": attacker.ID})
+	if ds := h.d.DebugState(); ds.Prompt != 1 {
+		t.Fatalf("expected seat 1 to choose shields, prompt %d", ds.Prompt)
+	}
+
+	// Double breaker chooses both shields
+	h.send(1, map[string]any{"header": "action", "cards": []string{s1.ID, s2.ID}})
+
+	dsAfter := h.d.DebugState()
+	if !dsAfter.Ended {
+		t.Fatal("expected match to end after memory shield broke via double breaker")
+	}
+
+	res := h.d.Result()
+	if !res.Finished || res.Winner != 1 || res.Reason != match.EndReasonMemory {
+		t.Fatalf("expected winner 1 with reason memory, got %+v", res)
+	}
+}
+
+func TestMemoryShieldLeavesShieldsWithoutBreaking(t *testing.T) {
+	h := start(t, setupSpec(func(s *match.BoardSetup) {
+		s.Seats[0].Battle = []match.SetupCard{q(vorg)}
+		s.Seats[1].Shields = []match.SetupCard{
+			{ID: vorg, Memory: true},
+			{ID: holyAwe},
+		}
+	}))
+
+	ds := h.d.DebugState()
+	memShieldID := ds.Seats[1].Shields[0].ID
+
+	// Move the memory card from shieldzone to graveyard without breaking it (simulating card effect / burn)
+	p2 := h.d.players[1].Player
+	_, err := p2.MoveCard(memShieldID, match.SHIELDZONE, match.GRAVEYARD, "effect")
+	if err != nil {
+		t.Fatalf("failed to move card: %v", err)
+	}
+
+	// Match should not end!
+	dsAfterMove := h.d.DebugState()
+	if dsAfterMove.Ended {
+		t.Fatal("match should NOT end when memory card leaves shields without breaking")
+	}
+
+	// Now attack remaining shield (holyAwe)
+	attacker := battleCard(t, h, 1, vorg)
+	remainingShieldID := ds.Seats[1].Shields[1].ID
+	h.send(1, map[string]any{"header": "attack_player", "virtualId": attacker.ID})
+	h.send(1, map[string]any{"header": "action", "cards": []string{remainingShieldID}})
+
+	// Cancel shield trigger
+	if h.d.DebugState().Prompt == 2 {
+		h.send(2, map[string]any{"header": "action", "cancel": true})
+	}
+
+	// Match still not ended, and reason is NOT memory
+	res := h.d.Result()
+	if res.Reason == match.EndReasonMemory {
+		t.Fatal("reason should NOT be memory when memory shield was not broken")
 	}
 }

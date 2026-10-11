@@ -364,6 +364,12 @@ func (m *Match) BreakShields(attemptedShields []*Card, source *Card) {
 
 		m.HandleFx(NewContext(m, &BrokenShieldEvent{CardID: card.ID, Source: source.ID}))
 
+		if shield.Memory {
+			winner := m.Opponent(shield.Player)
+			m.EndWithReason(winner, fmt.Sprintf("%s won by memory shield!", winner.Username()), EndReasonMemory)
+			return
+		}
+
 		// Handle shield triggers
 		if card.HasCondition(cnd.ShieldTrigger) {
 			shieldTriggers = append(shieldTriggers, card)
